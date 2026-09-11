@@ -77,7 +77,7 @@ export const Toolbar = ({ quill, readOnly = false }) => {
     if (!quill) return;
     const range = quill.getSelection();
     if (range) {
-      quill.removeFormat(range.index, range.length);
+      quill.removeFormat(range.index, range.length, 'user');
     }
   };
 

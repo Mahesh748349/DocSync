@@ -25,10 +25,13 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSplitActive, setIsSplitActive] = useState(false);
+  const [isSyncScroll, setIsSyncScroll] = useState(false);
 
   const socketRef = useRef(null);
   const otManagerRef = useRef(null);
   const quillRef = useRef(null);
+  const masterWorkspaceRef = useRef(null);
+  const simWorkspaceRef = useRef(null);
   const saveTimeoutRef = useRef(null);
 
   // 1. Fetch document metadata & access check
@@ -257,6 +260,30 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
 
   const isReadOnly = doc?.permissions?.role === 'viewer';
 
+  const handleMasterScroll = (e) => {
+    if (isSyncScroll && simWorkspaceRef.current) {
+      simWorkspaceRef.current.scrollTop = e.target.scrollTop;
+    }
+  };
+
+  const handleSimScroll = (e) => {
+    if (isSyncScroll && masterWorkspaceRef.current) {
+      masterWorkspaceRef.current.scrollTop = e.target.scrollTop;
+    }
+  };
+
+  const scrollMasterToTop = () => {
+    if (masterWorkspaceRef.current) {
+      masterWorkspaceRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollSimToTop = () => {
+    if (simWorkspaceRef.current) {
+      simWorkspaceRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="app-container">
       {/* Top Navbar */}
@@ -313,9 +340,29 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
                   MASTER CLIENT
                 </span>
               </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                Your View (Real User)
-              </span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  className={`toolbar-btn-pill ${isSyncScroll ? 'active' : ''}`}
+                  onClick={() => {
+                    const next = !isSyncScroll;
+                    setIsSyncScroll(next);
+                    if (next && masterWorkspaceRef.current && simWorkspaceRef.current) {
+                      simWorkspaceRef.current.scrollTop = masterWorkspaceRef.current.scrollTop;
+                    }
+                  }}
+                  title="Keep both panes scrolled to the exact same position"
+                >
+                  🔗 Sync Scroll: {isSyncScroll ? 'ON' : 'OFF'}
+                </button>
+                <button
+                  className="toolbar-btn-pill"
+                  onClick={scrollMasterToTop}
+                  title="Scroll Master Client to top of document"
+                >
+                  ↑ Top
+                </button>
+              </div>
             </div>
           )}
           <EditorCanvas
@@ -325,6 +372,8 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
             onSelectionChange={handleSelectionChange}
             readOnly={isReadOnly}
             remoteCursors={remoteCursors}
+            workspaceRef={masterWorkspaceRef}
+            onScroll={handleMasterScroll}
           />
         </div>
 
@@ -335,6 +384,9 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
             mainUser={user}
             mainToken={token}
             onClose={() => setIsSplitActive(false)}
+            workspaceRef={simWorkspaceRef}
+            onScroll={handleSimScroll}
+            onScrollToTop={scrollSimToTop}
           />
         )}
       </div>

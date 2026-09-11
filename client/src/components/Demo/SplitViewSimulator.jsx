@@ -4,19 +4,29 @@ import Quill from 'quill';
 import QuillCursors from 'quill-cursors';
 import Delta from 'quill-delta';
 import { ClientOTManager } from '../../ot/client-ot';
-import { Sparkles, X, AlertCircle, RefreshCw } from 'lucide-react';
+import { Sparkles, X, AlertCircle, RefreshCw, ExternalLink, Copy, Unlink } from 'lucide-react';
 
 // Register QuillCursors module
 if (!Quill.imports['modules/cursors']) {
   Quill.register('modules/cursors', QuillCursors);
 }
 
-export const SplitViewSimulator = ({ docId, mainUser, mainToken, onClose }) => {
+export const SplitViewSimulator = ({
+  docId,
+  mainUser,
+  mainToken,
+  onClose,
+  workspaceRef,
+  onScroll,
+  onScrollToTop
+}) => {
   const [simUser, setSimUser] = useState(null);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('Initializing simulated peer...');
+  const [activeLink, setActiveLink] = useState(null);
+  const [copied, setCopied] = useState(false);
   
   const simEditorRef = useRef(null);
   const simQuillRef = useRef(null);
@@ -70,14 +80,52 @@ export const SplitViewSimulator = ({ docId, mainUser, mainToken, onClose }) => {
           simQuillRef.current = quill;
           cursorsModuleRef.current = quill.getModule('cursors');
 
-          // Click-to-open links inside editor
-          simEditorRef.current.addEventListener('click', (e) => {
-            const link = e.target.closest('a');
-            if (link && link.href) {
-              e.preventDefault();
-              window.open(link.href, '_blank', 'noopener,noreferrer');
+          // Selection change for links
+          quill.on('selection-change', (range) => {
+            if (range) {
+              const format = quill.getFormat(range);
+              if (format.link) {
+                const bounds = quill.getBounds(range.index, range.length || 1);
+                if (bounds) {
+                  setActiveLink({
+                    url: format.link,
+                    top: bounds.bottom + 10,
+                    left: Math.max(10, bounds.left),
+                    range
+                  });
+                  return;
+                }
+              }
             }
+            setActiveLink(null);
           });
+
+          // Click-to-open links / Ctrl+Click handler
+          const handleSimClick = (e) => {
+            const target = e.target;
+            const link = (target.nodeType === 3 ? target.parentElement : target)?.closest('a');
+            if (link && link.href) {
+              if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                window.open(link.href, '_blank', 'noopener,noreferrer');
+                return;
+              }
+              const linkRect = link.getBoundingClientRect();
+              const editorRect = simEditorRef.current.getBoundingClientRect();
+              setActiveLink({
+                url: link.href,
+                top: linkRect.bottom - editorRect.top + 10,
+                left: Math.max(10, linkRect.left - editorRect.left),
+                range: quill.getSelection()
+              });
+            } else {
+              if (!target.closest('.link-floating-tooltip')) {
+                setActiveLink(null);
+              }
+            }
+          };
+
+          quill.root.addEventListener('click', handleSimClick);
         }
 
         socket.on('connect', () => {
@@ -123,7 +171,6 @@ export const SplitViewSimulator = ({ docId, mainUser, mainToken, onClose }) => {
           simQuillRef.current.on('text-change', (delta, oldDelta, source) => {
             if (source === 'user') {
               otManager.submitLocalOp(delta);
-              // Transmit live cursor movement immediately
               const sel = simQuillRef.current.getSelection();
               if (sel) {
                 socket.emit('cursor-move', { docId, range: sel });
@@ -218,7 +265,17 @@ export const SplitViewSimulator = ({ docId, mainUser, mainToken, onClose }) => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onScrollToTop && (
+            <button
+              className="toolbar-btn-pill"
+              onClick={onScrollToTop}
+              title="Scroll Live Peer pane to top"
+            >
+              ↑ Top
+            </button>
+          )}
+
           <span style={{
             fontSize: '0.75rem',
             color: connected ? 'var(--accent-green)' : 'var(--accent-amber)',
@@ -242,7 +299,12 @@ export const SplitViewSimulator = ({ docId, mainUser, mainToken, onClose }) => {
       </div>
 
       {/* Editor Canvas Area */}
-      <div className="editor-workspace" style={{ background: 'var(--bg-app)' }}>
+      <div
+        className="editor-workspace"
+        ref={workspaceRef}
+        onScroll={onScroll}
+        style={{ background: 'var(--bg-app)' }}
+      >
         {error ? (
           <div style={{
             padding: '2rem',
@@ -286,6 +348,78 @@ export const SplitViewSimulator = ({ docId, mainUser, mainToken, onClose }) => {
               </div>
             )}
             <div ref={simEditorRef} />
+
+            {/* Google Docs-style Floating Link Preview Card */}
+            {activeLink && (
+              <div
+                className="link-floating-tooltip"
+                style={{
+                  top: `${activeLink.top}px`,
+                  left: `${activeLink.left}px`
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '220px' }}>
+                  <ExternalLink size={13} color="var(--primary)" />
+                  <a
+                    href={activeLink.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="link-tooltip-url"
+                    title={activeLink.url}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.open(activeLink.url, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    {activeLink.url}
+                  </a>
+                </div>
+
+                <div className="link-tooltip-actions">
+                  <button
+                    type="button"
+                    className="link-tooltip-btn primary-action"
+                    title="Open website in new tab"
+                    onClick={() => window.open(activeLink.url, '_blank', 'noopener,noreferrer')}
+                  >
+                    Open ↗
+                  </button>
+                  <button
+                    type="button"
+                    className="link-tooltip-btn"
+                    title="Copy link"
+                    onClick={() => {
+                      navigator.clipboard.writeText(activeLink.url);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                  >
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button
+                    type="button"
+                    className="link-tooltip-btn text-danger"
+                    title="Remove link"
+                    onClick={() => {
+                      if (simQuillRef.current && activeLink.range) {
+                        simQuillRef.current.formatText(
+                          activeLink.range.index,
+                          activeLink.range.length || 1,
+                          'link',
+                          false,
+                          'user'
+                        );
+                      }
+                      setActiveLink(null);
+                    }}
+                  >
+                    Unlink
+                  </button>
+                </div>
+                <span className="link-tooltip-hint">(Ctrl+Click to open)</span>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -709,3 +709,125 @@ button, input, select, textarea {
   padding: 2rem 2.5rem;
   min-height: 800px;
 }
+
+/* Master client paper canvas gets a primary blue top border in split mode to clearly show document top */
+.split-view-container .split-pane:first-child .document-page-canvas {
+  border-top: 3px solid var(--primary);
+}
+
+/* Floating Link Preview Tooltip */
+.link-floating-tooltip {
+  position: absolute;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--modal-shadow);
+  padding: 0.45rem 0.8rem;
+  font-size: 0.8rem;
+  animation: fadeIn 0.15s ease-out;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.link-tooltip-url {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.8rem;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.link-tooltip-url:hover {
+  text-decoration: underline;
+}
+
+.link-tooltip-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-left: 1px solid var(--border-subtle);
+  padding-left: 8px;
+  margin-left: 2px;
+}
+
+.link-tooltip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.link-tooltip-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.link-tooltip-btn.primary-action {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.link-tooltip-btn.primary-action:hover {
+  background: var(--primary-hover);
+}
+
+.link-tooltip-btn.text-danger {
+  color: var(--accent-rose);
+}
+
+.link-tooltip-btn.text-danger:hover {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: var(--accent-rose);
+}
+
+.link-tooltip-hint {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-left: 4px;
+  font-style: italic;
+}
+
+/* Header Action Pills */
+.toolbar-btn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toolbar-btn-pill:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.toolbar-btn-pill.active {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  border-color: var(--primary);
+}
