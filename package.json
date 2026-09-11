@@ -1,0 +1,41 @@
+{
+  "name": "realtime-collaborative-doc-platform",
+  "version": "1.0.0",
+  "description": "Google Docs-style real-time collaborative document platform featuring low-latency WebSocket synchronization, an Operational Transformation (OT) concurrency control engine, role-based user permissions, and MongoDB persistence.",
+  "main": "server/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "node server/server.js",
+    "client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "test": "node tests/ot.test.js",
+    "test:integration": "node tests/integration.test.js"
+  },
+  "keywords": [
+    "real-time",
+    "collaboration",
+    "google-docs",
+    "operational-transformation",
+    "websockets",
+    "socket.io",
+    "nodejs",
+    "mongodb",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "quill-delta": "^5.1.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
