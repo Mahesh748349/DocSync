@@ -28,6 +28,7 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
 
   const socketRef = useRef(null);
   const otManagerRef = useRef(null);
+  const quillRef = useRef(null);
   const saveTimeoutRef = useRef(null);
 
   // 1. Fetch document metadata & access check
@@ -83,8 +84,8 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
       setActiveCollaborators(activeCollaborators || []);
 
       // If Quill is already mounted, load content
-      if (quillInstance) {
-        quillInstance.setContents(new Delta(content), 'silent');
+      if (quillRef.current) {
+        quillRef.current.setContents(new Delta(content), 'silent');
       }
 
       // Initialize Client OT Manager
@@ -92,9 +93,9 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
         socket,
         docId,
         baseVersion: version,
-        onApplyRemoteOp: (remoteOp, author) => {
-          if (quillInstance) {
-            quillInstance.updateContents(remoteOp, 'silent');
+        onApplyRemoteOp: (remoteOp) => {
+          if (quillRef.current) {
+            quillRef.current.updateContents(remoteOp, 'silent');
           }
         },
         onStatusChange: (status) => {
@@ -148,7 +149,15 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
         otManagerRef.current.destroy();
       }
     };
-  }, [docId, token, quillInstance]);
+  }, [docId, token]);
+
+  const handleInitQuill = (q) => {
+    setQuillInstance(q);
+    quillRef.current = q;
+    if (doc?.content && q.getText().trim() === '') {
+      q.setContents(new Delta(doc.content), 'silent');
+    }
+  };
 
   // Handle local text change in Quill
   const handleTextChange = (delta) => {
@@ -187,8 +196,8 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
 
   // Handle Version Restore
   const handleRestoreVersion = (newContent, newVersion) => {
-    if (quillInstance) {
-      quillInstance.setContents(new Delta(newContent), 'silent');
+    if (quillRef.current) {
+      quillRef.current.setContents(new Delta(newContent), 'silent');
     }
     if (otManagerRef.current) {
       otManagerRef.current.version = newVersion;
@@ -197,15 +206,14 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
 
   // Export handlers
   const handleExport = (format) => {
-    if (!quillInstance) return;
-    const text = quillInstance.getText();
-    const html = quillInstance.root.innerHTML;
+    if (!quillRef.current) return;
+    const text = quillRef.current.getText();
+    const html = quillRef.current.root.innerHTML;
     let filename = `${doc?.title || 'document'}`;
     let blob, ext;
 
     if (format === 'markdown') {
       ext = '.md';
-      // Basic markdown conversion
       const md = `# ${doc?.title}\n\n${text}`;
       blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
     } else if (format === 'text') {
@@ -271,41 +279,65 @@ export const DocumentPage = ({ docId, onBackToDashboard }) => {
       <Toolbar quill={quillInstance} readOnly={isReadOnly} />
 
       {/* Main Workspace (Normal or Split View) */}
-      {isSplitActive ? (
-        <div className="split-view-container">
-          {/* Left Pane: Main User */}
-          <div className="split-pane">
+      <div className={isSplitActive ? "split-view-container" : "single-view-container"}>
+        {/* Left Pane: Main User */}
+        <div className={isSplitActive ? "split-pane" : "single-pane"}>
+          {isSplitActive && (
             <div className="split-pane-header">
-              <span>{user?.name} ({doc?.permissions?.role?.toUpperCase()}) - YOUR VIEW</span>
-              <span style={{ color: 'var(--primary)' }}>Master Client</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  backgroundColor: user?.color || 'var(--primary)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.7rem',
+                  fontWeight: 600
+                }}>
+                  {user?.name?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                  {user?.name} ({doc?.permissions?.role?.toUpperCase()})
+                </span>
+                <span style={{
+                  fontSize: '0.7rem',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--primary-subtle)',
+                  color: 'var(--primary)',
+                  fontWeight: 600
+                }}>
+                  MASTER CLIENT
+                </span>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                Your View (Real User)
+              </span>
             </div>
-            <EditorCanvas
-              initialContent={doc?.content}
-              onInitQuill={(q) => setQuillInstance(q)}
-              onTextChange={handleTextChange}
-              onSelectionChange={handleSelectionChange}
-              readOnly={isReadOnly}
-              remoteCursors={remoteCursors}
-            />
-          </div>
+          )}
+          <EditorCanvas
+            initialContent={doc?.content}
+            onInitQuill={handleInitQuill}
+            onTextChange={handleTextChange}
+            onSelectionChange={handleSelectionChange}
+            readOnly={isReadOnly}
+            remoteCursors={remoteCursors}
+          />
+        </div>
 
-          {/* Right Pane: Simulated Collaborator */}
+        {/* Right Pane: Simulated Collaborator */}
+        {isSplitActive && (
           <SplitViewSimulator
             docId={docId}
             mainUser={user}
+            mainToken={token}
             onClose={() => setIsSplitActive(false)}
           />
-        </div>
-      ) : (
-        <EditorCanvas
-          initialContent={doc?.content}
-          onInitQuill={(q) => setQuillInstance(q)}
-          onTextChange={handleTextChange}
-          onSelectionChange={handleSelectionChange}
-          readOnly={isReadOnly}
-          remoteCursors={remoteCursors}
-        />
-      )}
+        )}
+      </div>
 
       {/* Share & Permissions RBAC Modal */}
       <ShareModal

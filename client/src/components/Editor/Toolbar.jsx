@@ -40,10 +40,36 @@ export const Toolbar = ({ quill, readOnly = false }) => {
   const handleLink = () => {
     if (!quill) return;
     const selection = quill.getSelection();
-    if (!selection) return;
-    const url = prompt('Enter link URL:');
-    if (url) {
-      quill.format('link', url);
+    const hasSelection = selection && selection.length > 0;
+    
+    // Check if cursor is already on a link
+    const currentFormat = quill.getFormat();
+    if (currentFormat.link) {
+      const remove = window.confirm(`Remove existing link (${currentFormat.link})?`);
+      if (remove) {
+        quill.format('link', false, 'user');
+        return;
+      }
+    }
+
+    const promptText = hasSelection 
+      ? 'Enter destination URL for selected text:' 
+      : 'Enter destination URL to insert at cursor:';
+
+    let url = prompt(promptText, 'https://');
+    if (!url || !url.trim()) return;
+
+    url = url.trim();
+    if (!/^https?:\/\//i.test(url) && !/^mailto:/i.test(url)) {
+      url = 'https://' + url;
+    }
+
+    if (hasSelection) {
+      quill.format('link', url, 'user');
+    } else {
+      const atIndex = selection ? selection.index : quill.getLength();
+      quill.insertText(atIndex, url, { link: url }, 'user');
+      quill.setSelection(atIndex + url.length, 0);
     }
   };
 

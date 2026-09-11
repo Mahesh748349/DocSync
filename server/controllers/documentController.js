@@ -3,6 +3,8 @@ const User = require('../models/User');
 const VersionSnapshot = require('../models/VersionSnapshot');
 const otServer = require('../ot/ot-server');
 const { getDocumentPermission } = require('../middleware/rbac');
+const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../middleware/auth');
 
 // Create new document
 exports.createDocument = async (req, res) => {
@@ -462,6 +464,53 @@ exports.restoreVersion = async (req, res) => {
       message: `Document restored to version ${version}`,
       newVersion: result.newVersion,
       content: snapshot.content
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Create or grant access to a simulated peer collaborator for Split View Demo
+exports.createSimulatorCollaborator = async (req, res) => {
+  try {
+    const doc = await Document.findById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+
+    const perm = getDocumentPermission(doc, req.user._id);
+    if (!perm.canView) {
+      return res.status(403).json({ success: false, message: 'Access denied: You cannot view this document' });
+    }
+
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const guestUser = await User.create({
+      name: 'Sarah Connor (Simulated Peer)',
+      email: `sim_sarah_${randomSuffix}@demo.internal`,
+      password: `simPass_${randomSuffix}`,
+      color: '#ef4444',
+      isGuest: true
+    });
+
+    // Add guest to document as editor so RBAC and sockets allow full real-time collaboration
+    doc.collaborators.push({
+      user: guestUser._id,
+      role: 'editor',
+      addedAt: new Date()
+    });
+    await doc.save();
+
+    const token = jwt.sign({ id: guestUser._id }, JWT_SECRET, { expiresIn: '1d' });
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: guestUser._id.toString(),
+        name: guestUser.name,
+        email: guestUser.email,
+        color: guestUser.color
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

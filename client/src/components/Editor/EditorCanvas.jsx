@@ -64,6 +64,20 @@ export const EditorCanvas = ({
       }
     });
 
+    // Click-to-open links in new tab
+    const handleLinkClick = (e) => {
+      const link = e.target.closest('a');
+      if (link && link.href) {
+        e.preventDefault();
+        window.open(link.href, '_blank', 'noopener,noreferrer');
+      }
+    };
+
+    const node = editorRef.current;
+    if (node) {
+      node.addEventListener('click', handleLinkClick);
+    }
+
     updateStats(quill);
 
     if (onInitQuill) {
@@ -71,7 +85,9 @@ export const EditorCanvas = ({
     }
 
     return () => {
-      // Cleanup if needed
+      if (node) {
+        node.removeEventListener('click', handleLinkClick);
+      }
     };
   }, []);
 
@@ -86,6 +102,14 @@ export const EditorCanvas = ({
   useEffect(() => {
     if (!cursorsModuleRef.current) return;
     const cursors = cursorsModuleRef.current;
+
+    // Prune stale cursors for disconnected peers
+    const activeIds = Object.keys(remoteCursors);
+    cursors.cursors().forEach(c => {
+      if (!activeIds.includes(c.id)) {
+        cursors.removeCursor(c.id);
+      }
+    });
 
     Object.entries(remoteCursors).forEach(([socketId, cursorData]) => {
       if (!cursorData || !cursorData.user) return;

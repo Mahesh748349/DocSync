@@ -12,7 +12,8 @@ const {
   updateLinkSharing,
   getVersionHistory,
   createSnapshotCheckpoint,
-  restoreVersion
+  restoreVersion,
+  createSimulatorCollaborator
 } = require('../controllers/documentController');
 const { protect } = require('../middleware/auth');
 
@@ -27,6 +28,7 @@ router.route('/:id')
   .put(updateDocumentTitle)
   .delete(deleteDocument);
 
+router.post('/:id/simulate', createSimulatorCollaborator);
 router.post('/:id/collaborators', addCollaborator);
 router.put('/:id/collaborators/:userId', updateCollaboratorRole);
 router.delete('/:id/collaborators/:userId', removeCollaborator);
